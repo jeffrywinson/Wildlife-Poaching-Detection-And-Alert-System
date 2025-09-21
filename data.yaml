@@ -1,0 +1,10 @@
+# Path to train and validation images directory
+# Note: Paths are relative to the project root directory (where you run the 'train.py' script)
+train: data/processed/images/train
+val: data/processed/images/val
+
+# Number of classes
+nc: 4
+
+# Class names in order (0 to 3)
+names: ['elephant', 'tiger', 'wolf', 'leopard']
