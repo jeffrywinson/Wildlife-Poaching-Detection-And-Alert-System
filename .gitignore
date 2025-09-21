@@ -2,3 +2,8 @@
 /.venv
 
 /data
+
+/runs
+
+/static/uploads
+/static/results

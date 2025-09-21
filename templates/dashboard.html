@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hawkeye Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <!-- Leaflet.js for the map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+</head>
+<body class="forest-theme style="background-image: url('{{ url_for('static', filename='forest_bg.jpg') }}');">
+    <div class="main-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1>Hawkeye AI 🦅</h1>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="/" class="active">Dashboard</a>
+                <a href="/test">Test Model</a>
+            </nav>
+            <div class="sidebar-footer">
+                <p>Wildlife Protection System</p>
+            </div>
+        </aside>
+
+        <main class="content">
+            <header class="content-header">
+                <h2>System Dashboard</h2>
+                <p>Real-time monitoring of protected zones</p>
+            </header>
+
+            <section class="alerts-section">
+                <h3>High-Priority Alerts</h3>
+                <div id="alerts-container">
+                    <p class="no-alerts">No high-priority alerts at the moment.</p>
+                </div>
+            </section>
+
+            <div class="dashboard-grid">
+                <section class="map-container card">
+                    <h3>Zone Overview Map</h3>
+                    <div id="map"></div>
+                </section>
+
+                <section class="events-log-container card">
+                    <h3>Recent Events Log</h3>
+                    <ul id="events-log">
+                        <li>System Initialized. Waiting for events...</li>
+                    </ul>
+                </section>
+            </div>
+        </main>
+    </div>
+    <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
+</body>
+</html>

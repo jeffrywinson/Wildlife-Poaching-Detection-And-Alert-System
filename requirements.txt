@@ -1,1 +1,4 @@
 ultralytics
+Flask
+Pillow
+requests

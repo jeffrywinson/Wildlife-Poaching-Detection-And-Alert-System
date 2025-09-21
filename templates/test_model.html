@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Hawkeye Model</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="forest-theme style="background-image: url('{{ url_for('static', filename='forest_bg.jpg') }}');">
+    <div class="container test-page-container">
+        <a href="/" class="back-link">&larr; Back to Dashboard</a>
+        <h1>Hawkeye Model Test 🦅</h1>
+        <p>Upload an image to test the detection model firsthand.</p>
+        
+        <div class="upload-box">
+            <input type="file" id="image-upload" accept="image/*">
+            <label for="image-upload">Click to choose an image</label>
+        </div>
+
+        <button id="detect-btn" disabled>Detect Animals</button>
+        
+        <div class="loader-container">
+            <div class="loader hidden"></div>
+        </div>
+
+        <div class="results-container">
+            <div class="image-wrapper">
+                <h3>Original Image</h3>
+                <img id="image-preview" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIHZpZXdCb3g9IjAgMCAzMDAgMjAwIiBwcmVzZXJ2ZUFzcGVjdFJhdGlvPSJ4TWluWU1pbiBtZWV0Ij4KICA8cmVjdCB3aWR0aD0iMTAwJSIgaGVpZHRoPSIxMDAlIiBmaWxsPSIjZmFmYWZhIiAvPgogIDx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgZmlsbD0iI2NjYyI+VW5ndWFkZWQgSW1hZ2U8L3RleHQ+Cjwvc3ZnPg==" alt="Your uploaded image will appear here." />
+            </div>
+            <div class="image-wrapper">
+                <h3>Detection Result</h3>
+                <img id="result-image" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIHZpZXdCb3g9IjAgMCAzMDAgMjAwIiBwcmVzZXJ2ZUFzcGVjdFJhdGlvPSJ4TWluWU1pbiBtZWV0Ij4KICA8cmVjdCB3aWR0aD0iMTAwJSIgaGVpZHRoPSIxMDAlIiBmaWxsPSIjZmFmYWZhIiAvPgogIDx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgZmlsbD0iI2NjYyI+QXdhaXRpbmcgRGV0ZWN0aW9uPC90ZXh0Pgo8L3N2Zz4=" alt="Detection results will appear here." />
+            </div>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='test_model.js') }}"></script>
+</body>
+</html>
