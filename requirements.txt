@@ -2,3 +2,4 @@ ultralytics
 Flask
 Pillow
 requests
+opencv-python
