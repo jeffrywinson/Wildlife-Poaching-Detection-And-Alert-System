@@ -1,5 +1,5 @@
 # Ignore the virtual environment folder
-/.venv
+/venv
 
 /data
 
@@ -7,3 +7,5 @@
 
 /static/uploads
 /static/results
+
+/__pycache__
