@@ -4,121 +4,113 @@ import time
 from ultralytics import YOLO
 
 # --- 1. CONFIGURATION ---
-
-# !! CRITICAL: Change this to the IP address of Laptop 2 (your server) !!
-#    Find it by running 'ipconfig' (Windows) or 'ifconfig' (macOS/Linux)
-#    on Laptop 2. DO NOT use 'localhost' or '127.0.0.1'.
-SERVER_URL = "http://<LAPTOP_2_IP_ADDRESS>:5000/api/event"
-
-# The name of the camera this laptop represents
+SERVER_URL = "http://10.79.125.60:5000/api/event" # Use Laptop 2's IP
 CAMERA_ID = "CAM001"
-
-# Path to your trained model
-MODEL_PATH = 'best.pt'
-
-# Cooldown (in seconds) to prevent spamming the server
-COOLDOWN_SECONDS = 10 
+MODEL_PATH_ANIMALS = 'best.pt'
+MODEL_PATH_PEOPLE = 'yolov8n.pt' # Default YOLO model
+MIN_CONFIDENCE = 0.75
+COOLDOWN_SECONDS = 5 # Reduced cooldown for a faster demo
 
 # --- 2. INITIALIZATION ---
-
 try:
-    model = YOLO(MODEL_PATH)
-    print(f"✅ Model loaded successfully from {MODEL_PATH}")
+    model_animals = YOLO(MODEL_PATH_ANIMALS)
+    model_people = YOLO(MODEL_PATH_PEOPLE)
+    print("✅ Animal and People models loaded successfully.")
 except Exception as e:
-    print(f"❌ Error loading model: {e}. Make sure 'best.pt' is in the same folder.")
+    print(f"❌ Error loading models: {e}.")
     exit()
 
-# Get class names from the model (e.g., ['elephant', 'tiger', 'wolf', 'leopard'])
-target_classes = set(model.names.values())
-print(f"🎯 Targeting {len(target_classes)} classes: {target_classes}")
+# Get class names for our custom animal model
+target_animal_classes = set(model_animals.names.values())
+# For the default model, 'person' is class 0
+target_human_class_id = 0 
 
-cap = cv2.VideoCapture(0)  # Open default webcam (usually 0)
+print(f"🎯 Targeting animals: {target_animal_classes}")
+print("🎯 Targeting 'person' from the default model.")
+
+cap = cv2.VideoCapture(0)
 if not cap.isOpened():
     print("❌ Error: Could not open webcam.")
     exit()
 
 print("\n🚀 Hawkeye Camera Client is running...")
-print("   Point your tiger printout at the webcam.")
+print("   Show an animal printout or step in front of the camera.")
 print("   Press 'q' to quit.")
 
 last_detection_time = 0
 
 # --- 3. REAL-TIME DETECTION LOOP ---
-
 try:
     while True:
-        # Read a frame from the webcam
         ret, frame = cap.read()
         if not ret:
             print("⚠️ Warning: Failed to grab frame.")
             break
 
-        # Run YOLOv8 prediction on the frame
-        # verbose=False silences the per-frame console logs
-        results = model.predict(frame, verbose=False)
+        # --- Run Both Models ---
+        results_animals = model_animals.predict(frame, verbose=False)
+        results_people = model_people.predict(frame, verbose=False)
 
-        detected_animal = None
-        
-        # Process results
-        for result in results:
-            for box in result.boxes:
-                cls_id = int(box.cls[0])
-                class_name = model.names[cls_id]
-                
-                # Check if the detected object is one of our targets
-                if class_name in target_classes:
-                    detected_animal = class_name
-                    
-                    # Draw a bounding box for your demo
-                    x1, y1, x2, y2 = map(int, box.xyxy[0])
+        best_detection = None
+        best_conf = 0.0
+        best_label = ""
+        best_box = []
+
+        # --- Process Animal Detections ---
+        for res in results_animals:
+            for box in res.boxes:
+                conf = float(box.conf[0])
+                if conf > best_conf:
+                    best_conf = conf
+                    best_detection = model_animals.names[int(box.cls[0])]
+                    best_label = f"{best_detection} {conf:.2f}"
+                    best_box = list(map(int, box.xyxy[0]))
+
+        # --- Process People Detections ---
+        for res in results_people:
+            for box in res.boxes:
+                if int(box.cls[0]) == target_human_class_id:
                     conf = float(box.conf[0])
-                    label = f"{class_name} {conf:.2f}"
-                    
-                    cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                    cv2.putText(frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
-                    
-                    # Found one, stop looping for this frame
-                    break
-            if detected_animal:
-                break
+                    if conf > best_conf:
+                        best_conf = conf
+                        best_detection = "human" # Send "human" as the detection type
+                        best_label = f"Human {conf:.2f}"
+                        best_box = list(map(int, box.xyxy[0]))
+        
+        # --- Draw Best Bounding Box ---
+        if best_conf > MIN_CONFIDENCE and best_box:
+            x1, y1, x2, y2 = best_box
+            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            cv2.putText(frame, best_label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
 
-        # Show the live feed in a window
         cv2.imshow('Hawkeye Camera Client (CAM001)', frame)
 
-        # --- 4. SEND ALERT (WITH COOLDOWN) ---
-        
+        # --- 4. SEND ALERT (with Confidence Check) ---
         current_time = time.time()
-        # Check if we detected an animal AND the cooldown has passed
-        if detected_animal and (current_time - last_detection_time > COOLDOWN_SECONDS):
-            print(f"‼️ Detected {detected_animal}! Sending alert to server...")
+        
+        # Only send if confidence > 0.75 AND cooldown has passed
+        if best_detection and best_conf > MIN_CONFIDENCE and (current_time - last_detection_time > COOLDOWN_SECONDS):
+            print(f"‼️ Detected {best_detection} (Conf: {best_conf:.2f})! Sending alert...")
             
             payload = {
                 "camera_id": CAMERA_ID,
-                "detection": detected_animal
+                "detection": best_detection,
+                "confidence": best_conf
             }
             
             try:
-                # Send the detection to the server
                 response = requests.post(SERVER_URL, json=payload, timeout=3)
-                
                 if response.status_code == 200:
-                    print(f"✅ Alert for {detected_animal} sent successfully.")
-                    last_detection_time = current_time  # Reset the cooldown timer
+                    print("✅ Alert sent successfully.")
+                    last_detection_time = current_time
                 else:
                     print(f"❌ Failed to send alert. Server responded with: {response.status_code}")
-            
             except requests.exceptions.RequestException as e:
                 print(f"❌ CONNECTION ERROR: Could not reach server at {SERVER_URL}")
-                print("   1. Is the server running on Laptop 2?")
-                print(f"   2. Is the IP address '{SERVER_URL}' correct?")
-                print(f"   3. Are both laptops on the same Wi-Fi network?")
 
-        # Check for 'q' key press to quit
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
-
 finally:
-    # Clean up
     cap.release()
     cv2.destroyAllWindows()
     print("Camera client shut down.")
