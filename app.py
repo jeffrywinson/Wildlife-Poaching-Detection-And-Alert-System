@@ -20,7 +20,7 @@ os.makedirs(os.path.join('static', 'results'), exist_ok=True)
 model = YOLO('best.pt')
 
 # --- Agent Configuration ---
-N8N_WEBHOOK_URL = "http://localhost:5678/webhook-test/65dc76d9-b318-47c7-aa16-919906ec5d94"
+N8N_WEBHOOK_URL = "http://localhost:5678/webhook/hawkeye-alert" # Your n8n PRODUCTION URL
 MIN_CONFIDENCE_TO_PROCESS = 0.75
 
 # --- Animal Alert Level Classification ---
@@ -50,76 +50,80 @@ ACTIVE_ZONE_DURATION_HOURS = 1
 
 # --- 3. HELPER FUNCTIONS ---
 def haversine(lon1, lat1, lon2, lat2):
-    """Calculate the great-circle distance between two points on the earth."""
     lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
-    dlon = lon2 - lon1
-    dlat = lat2 - lat1
+    dlon = lon2 - lon1; dlat = lat2 - lat1
     a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
-    c = 2 * asin(sqrt(a))
-    r = 6371  # Radius of earth in kilometers.
+    c = 2 * asin(sqrt(a)); r = 6371
     return c * r
 
 def add_event(message, is_threat=False):
-    """Adds a new event to the state, keeping only the last 20."""
-    event = {
-        "id": str(uuid.uuid4()),
-        "timestamp": datetime.now().isoformat(),
-        "message": message,
-        "is_threat": is_threat
-    }
+    event = { "id": str(uuid.uuid4()), "timestamp": datetime.now().isoformat(), "message": message, "is_threat": is_threat }
     APP_STATE["events"].insert(0, event)
     APP_STATE["events"] = APP_STATE["events"][:20]
 
 def add_alert(message, camera_id):
-    """Adds a new high-priority alert."""
-    alert = {
-        "id": str(uuid.uuid4()),
-        "timestamp": datetime.now().isoformat(),
-        "camera_id": camera_id,
-        "message": message
-    }
+    alert = { "id": str(uuid.uuid4()), "timestamp": datetime.now().isoformat(), "camera_id": camera_id, "message": message }
     APP_STATE["alerts"].insert(0, alert)
     APP_STATE["alerts"] = APP_STATE["alerts"][:10]
 
-# --- 4. AGENT LOGIC ---
+# --- 4. AGENT LOGIC (HEAVILY UPDATED) ---
 def trigger_agentic_alert(alert_level, animal_type, camera_id, location_name):
     """
-    Looks up contacts from the DB, builds the phone number list,
-    and sends it to the n8n agent workflow.
+    Looks up contacts, builds phone AND email lists,
+    and sends a rich payload to the n8n agent workflow.
     """
     
     phone_numbers = []
+    emails = []
     contacts = CONTACTS_DB.get(camera_id)
     
     if not contacts:
         print(f"❌ Error: No contacts found for camera_id {camera_id}")
         return
 
-    # Build the alert list based on level
+    # --- NEW: Build both phone and email lists ---
     if alert_level == "Yellow":
-        phone_numbers.append(contacts["guard"])
+        phone_numbers.append(contacts["guard"]["phone"])
+        emails.append(contacts["guard"]["email"])
         
     elif alert_level == "Orange":
-        phone_numbers.append(contacts["guard"])
-        phone_numbers.append(contacts["deputy_ranger"])
+        phone_numbers.append(contacts["guard"]["phone"])
+        emails.append(contacts["guard"]["email"])
+        phone_numbers.append(contacts["deputy_ranger"]["phone"])
+        emails.append(contacts["deputy_ranger"]["email"])
         
     elif alert_level == "Red":
-        phone_numbers.append(contacts["guard"])
-        phone_numbers.append(contacts["deputy_ranger"])
-        phone_numbers.append(contacts["range_officer"])
+        phone_numbers.append(contacts["guard"]["phone"])
+        emails.append(contacts["guard"]["email"])
+        phone_numbers.append(contacts["deputy_ranger"]["phone"])
+        emails.append(contacts["deputy_ranger"]["email"])
+        phone_numbers.append(contacts["range_officer"]["phone"])
+        emails.append(contacts["range_officer"]["email"])
 
-    # Send the list of numbers to n8n
+    # --- NEW: Create a richer payload ---
     message = f"{alert_level} ALERT! Human spotted in {animal_type.capitalize()} zone at {location_name}."
     payload = {
+        "alert_level": alert_level,
+        "animal_type": animal_type,
+        "location": location_name,
         "message": message,
-        "phone_numbers": phone_numbers  # Pass the whole list
+        "phone_numbers": phone_numbers,
+        "emails": emails
     }
     
+    print(f"Attempting to send to N8N: {payload}")
+    
     try:
-        requests.post(N8N_WEBHOOK_URL, json=payload, timeout=3)
-        print(f"✅ Agentic alert triggered: {alert_level} at {location_name}. Notifying {len(phone_numbers)} officer(s).")
+        response = requests.post(N8N_WEBHOOK_URL, json=payload, timeout=3)
+        if response.status_code == 200:
+            print(f"✅ Agentic alert triggered: {alert_level} at {location_name}. Notifying {len(phone_numbers)} officer(s).")
+            print(f"✅ N8N Response: {response.text}")
+        else:
+            print(f"❌ N8N ERROR: Server responded with status code {response.status_code}")
+            print(f"❌ N8N RESPONSE: {response.text}")
+            
     except requests.exceptions.RequestException as e:
-        print(f"❌ FAILED TO TRIGGER N8N AGENT: {e}")
+        print(f"❌ FAILED TO TRIGGER N8N AGENT (Network Error): {e}")
 
 # --- 5. CORE EVENT LOGIC ---
 def process_event(data):
@@ -129,8 +133,10 @@ def process_event(data):
     timestamp = datetime.now()
 
     if confidence <= MIN_CONFIDENCE_TO_PROCESS:
+        print(f"Ignoring low-confidence detection: {detection} ({confidence:.2f})")
         return
     if not all([camera_id, detection, camera_id in APP_STATE["cameras"]]):
+        print(f"Ignoring invalid data: {data}")
         return
 
     cam_info = APP_STATE["cameras"][camera_id]
@@ -195,12 +201,13 @@ def test_model_page():
 
 @app.route('/api/event', methods=['POST'])
 def handle_event():
-    process_event(request.json)
+    data = request.json
+    print(f"Received data: {data}")
+    process_event(data)
     return jsonify({"status": "success"}), 200
 
 @app.route('/api/get_state')
 def get_state():
-    # This is the line that was fixed (removed the extra '.')
     return jsonify(APP_STATE)
 
 @app.route('/predict', methods=['POST'])
@@ -221,3 +228,4 @@ def predict():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
+

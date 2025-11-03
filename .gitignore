@@ -8,4 +8,7 @@
 /static/uploads
 /static/results
 
-/__pycache__
+__pycache__/
+*.pyc
+
+contacts.py
