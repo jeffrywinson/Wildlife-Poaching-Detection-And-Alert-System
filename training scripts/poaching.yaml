@@ -1,0 +1,18 @@
+# poaching_5_class.yaml
+
+# Path to the new 5-class dataset you just created
+path: G:/Poaching_Project/final_dataset_5_class
+
+# Set splits
+train: images/train
+val: images/val
+test: images/test
+
+# Set new 5-class list
+nc: 5
+names: 
+  0: elephant
+  1: tiger
+  2: wolf
+  3: leopard
+  4: jeep

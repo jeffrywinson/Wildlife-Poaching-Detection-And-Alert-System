@@ -5,7 +5,7 @@ from ultralytics import YOLO
 import threading  # <-- 1. IMPORT THREADING
 
 # --- 1. CONFIGURATION ---
-SERVER_URL = "http://10.79.125.60:5000/api/event" # Use Laptop 2's IP
+SERVER_URL = "http://10.184.49.60:5000/api/event" # Use Laptop 2's IP
 CAMERA_ID = "CAM001"
 MODEL_PATH_ANIMALS = 'best.pt'
 MODEL_PATH_PEOPLE = 'yolov8n.pt' # Default YOLO model
